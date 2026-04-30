@@ -92,12 +92,11 @@ python code/per_case_9way.py     # Module 4 — per-case adaptive fusion → F1 
 
 | Paradigm | Single-model F1 | Strength | Weakness |
 |---|---|---|---|
-| BiLSTM-CRF (classical NER) | ~0.75 (literature) | lightweight, interpretable | weak long-context, poor OOD |
-| BERT-base + QA fine-tune | ~0.82 (literature) | strong context | char-level granularity limited |
+| BERT-base + token-classification fine-tune (our run, fold 0) | 0.7727 | strong general language, char-level token classification works | no medical semantic prior, smaller capacity |
 | **DeBERTa-v3-large + MLM-pretrain + AWP** (Module 1, our general encoder) | 0.8646 | char-level precision, strong general language | no medical semantic prior |
 | **PubMedBERT-large + AWP** (Module 2, our medical encoder) | 0.8258 | medical jargon, clinical acronyms, drug/symptom terms | weaker on long-range syntax |
-| **Mistral-Nemo-12B + 2-stage LoRA SFT** (Module 3, our generator) | ~0.79 | rich semantics, medical knowledge | char-level imprecise (generate → string-match) |
-| **HEDGE — three modules fused** (ours) | **0.8909** | uncorrelated errors along 3 axes | high inference cost |
+| **Mistral-Nemo-12B + 2-stage LoRA SFT** (Module 3, our generator) | 0.7839 | rich semantics, medical knowledge | char-level imprecise (generate → string-match) |
+| **HEDGE — three modules fused** (ours) | **0.8909** | uncorrelated errors along 3 axes | (none reported) |
 
 The three modules have **uncorrelated errors** along three orthogonal axes: general-language vs. medical-domain knowledge (Module 1 vs. Module 2), and discriminative char-level scoring vs. generative span writing (Modules 1+2 vs. Module 3). The fusion turns disagreement into signal, lifting the F1 from 0.8646 (best single model) to 0.8909.
 
