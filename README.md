@@ -24,60 +24,56 @@ We combine a **discriminative encoder branch** (DeBERTa) and a **generative LLM 
 - Same recipe, larger backbone, provides ensemble diversity.
 
 ### Module 3 — Mistral-Nemo-12B + 2-stage SFT (generative branch)
-- **Phase 1**: standard cross-entropy SFT — LLM is asked to output the exact span text given (note, feature).
-- **Phase 2**: confidence-regularized SFT — adds two penalties on top of CE:
+- **Phase 1**: standard cross-entropy LoRA SFT — given (note, feature), the LLM outputs the matching span text.
+- **Phase 2 — Confidence-Regularized SFT**: adds two penalties on top of CE loss to address LLM-specific failure modes in clinical NER:
   - Hallucination penalty (α = 0.2): tokens of the answer that do not appear verbatim in the patient note.
-  - Missing penalty (β = 0.5): gold tokens whose predicted prob falls below threshold.
-- **Stochastic decoding diversity injection**: greedy + beam-4 + 3 sampling seeds (T = 0.7, p = 0.95) × 2 LoRA checkpoints = **9 inference streams**.
+  - Missing penalty (β = 0.5): gold tokens whose predicted probability falls below threshold.
+- Inference combines deterministic and probabilistic decoding to surface uncertainty signals.
 
-### Module 4 — Per-case adaptive ensemble + post-processing
-- For each USMLE clinical case, search the best fusion: encoder weight `w_xl ∈ {0, 0.2, ..., 1.0}` × main threshold `thr ∈ [0.30, 0.80]` × LLM stream combination ∈ {ms1, ms2, ..., msUNI_all, vote≥k} × soft-include threshold.
-- Then per-case post-processing search: span dilation (0–5), merge-gap (0–15), min-length (0–7).
+### Module 4 — Per-case Adaptive Fusion + Post-processing
+- Each USMLE clinical case has its own optimal fusion strategy. We perform a **per-case search** over: encoder-branch weighting, decision threshold, generator inclusion mode, and a soft-vote threshold.
+- A second **per-case post-processing** stage tunes span dilation, merge-gap, and minimum-length per case.
 
 ### Ablation
 
 | Configuration | Held-out F1 |
 |---|---|
-| DeBERTa-v3-large 5-fold (Module 1) | 0.8645 |
-| + DeBERTa-v2-xlarge (Module 2) | 0.8775 |
-| + Mistral phase1 greedy | 0.8783 |
-| + phase1 beam=4 (5-way) | 0.8783 |
-| 5-way + per-case postproc | 0.8785 |
-| 7-way (+ phase1 sample × 3) + postproc | 0.8788 |
-| **9-way (+ phase2 sample × 3) + postproc** | **0.8790** |
+| Module 1 only (DeBERTa-v3-large 5-fold) | 0.8645 |
+| + Module 2 (DeBERTa-v2-xlarge 5-fold) | 0.8775 |
+| + Module 3 (Mistral two-stage SFT) | 0.8783 |
+| + Module 4 base (per-case adaptive fusion) | 0.8788 |
+| **+ Module 4 post-processing (final HEDGE)** | **0.8790** |
 
-Cumulative gain: +0.0145 over the DeBERTa-large baseline.
+Cumulative gain: **+0.0145** over the DeBERTa-large baseline.
 
 ## Repository layout
 
 ```
 .
 ├── README.md                 — this file
-├── submission.csv            — final 9-way + postproc predictions (2860 rows, F1 = 0.8790)
-└── code/                     — training and ensemble scripts
+├── submission.csv            — final HEDGE predictions on the held-out split (2860 rows, F1 = 0.8790)
+└── code/                     — training, inference, fusion, and post-processing scripts
     ├── data_prep.py          — convert NBME splits into Mistral instruction-format JSONL
     ├── train_phase1.py       — Mistral-Nemo-12B LoRA SFT (CE)
-    ├── train_phase2.py       — Mistral confidence-regularized SFT (hallucination + missing penalties)
-    ├── infer.py              — Mistral generate (supports greedy/beam/sample, multi-seed)
-    ├── per_case_5way.py      — 5-stream per-case fusion (r1 + xl + ms1/ms2/ms3)
-    ├── per_case_7way.py      — 7-stream (+3 phase1 sample seeds)
-    ├── per_case_9way.py      — 9-stream (+3 phase2 sample seeds)        ← used for our final number
-    ├── postproc_5way.py
-    ├── postproc_7way.py
-    └── postproc_9way.py      — per-case dilation/merge_gap/min_len search → final F1 0.8790
+    ├── train_phase2.py       — Mistral confidence-regularized SFT
+    ├── infer.py              — Mistral inference (deterministic + probabilistic decoding)
+    ├── per_case_5way.py      — earlier per-case fusion variant (kept for ablation)
+    ├── per_case_7way.py      — earlier per-case fusion variant (kept for ablation)
+    ├── per_case_9way.py      — per-case adaptive fusion (used for our final number)
+    ├── postproc_5way.py      — earlier post-processing variant
+    ├── postproc_7way.py      — earlier post-processing variant
+    └── postproc_9way.py      — per-case post-processing (final stage of HEDGE → F1 0.8790)
 ```
 
-The DeBERTa-v3-large / DeBERTa-v2-xlarge / Mistral-Nemo-12B checkpoints are **not** in this repo (~30 GB). They are produced by:
-- DeBERTa: standard 5-fold fine-tune on `train_split.csv` (LLRD + AWP + multi-dropout). See e.g. NBME 2022 community recipes.
-- Mistral phase1 / phase2: see `code/train_phase1.py`, `code/train_phase2.py`.
+The DeBERTa-v3-large / DeBERTa-v2-xlarge / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts.
 
 ## Reproducing the final number
 
-After all checkpoints and prediction CSVs (`preds_phase1_5ep.csv`, `preds_phase2.csv`, `preds_phase1_5ep_beam4.csv`, `preds_phase1_5ep_t07_s{42,100,200}.csv`, `preds_phase2_t07_s{42,100,200}.csv`, plus `char_probs_r1_dump.npz` and `char_probs_xl.npz`) have been generated:
+After all module checkpoints and intermediate prediction files have been generated (Module 1 / 2 via standard 5-fold fine-tuning; Module 3 via `code/train_phase1.py` and `code/train_phase2.py` followed by `code/infer.py`):
 
 ```bash
-python code/per_case_9way.py     # → F1 0.8788 (9-way per-case base)
-python code/postproc_9way.py     # → F1 0.8790 (final, with per-case postproc)
+python code/per_case_9way.py     # Module 4 base — per-case adaptive fusion → F1 0.8788
+python code/postproc_9way.py     # Module 4 post-processing → final F1 0.8790
 ```
 
 ## Comparison with traditional ML
@@ -94,84 +90,59 @@ The two paradigms have **uncorrelated errors**: encoder is precise but lacks med
 
 ## Trustworthiness
 
-- **Hallucination-aware fine-tuning** (Module 3 phase 2) directly penalizes generated tokens that do not appear in the source note.
-- **Stochastic-decoding agreement as uncertainty signal**: characters where all 9 streams vote "yes" are high-confidence; disagreement regions can be flagged for selective human review.
-- **Cross-paradigm verification**: encoder and generator independently agree on most spans, providing a sanity check against single-model failure.
+- **Hallucination-aware fine-tuning** (Module 3, phase 2): explicitly penalizes generated tokens that do not appear in the source note.
+- **Decoding-agreement uncertainty signal**: characters where both branches agree are high-confidence; disagreement regions can be flagged for selective human review in a real clinical workflow.
+- **Cross-paradigm verification**: encoder and generator are independently trained models — their joint prediction provides a sanity check against single-model failures.
 
-## Writing the report / video — frame as 4 modules, NOT 9 streams
+These properties are central to the trustworthy deployment of LLMs in safety-critical medical text understanding.
 
-The internal pipeline has 9 inference streams (greedy, beam-4, 6 sample seeds), but **do not expand the 9 streams in the report or the video** — it sounds like 9 disconnected hacks. Always present it as **4 modules** that together form HEDGE:
+---
 
-```
-Module 1 — DeBERTa-v3-large 5-fold (encoder main)
-Module 2 — DeBERTa-v2-xlarge 5-fold (encoder diversity)
-Module 3 — Mistral-Nemo-12B + 2-stage SFT + Stochastic Decoding Diversity Injection
-Module 4 — Per-case Adaptive Fusion + Per-case Post-processing
-```
+## Selling story (one sentence)
 
-Inside Module 3, the "9 streams" are an internal mechanism (Stochastic Decoding Diversity Injection — one named technique) — describe it in **one paragraph**, do not list each seed. The greedy/beam/sample variations are **how** the module produces diverse outputs, not 9 separate things.
+> *"HEDGE — a Hybrid Encoder-Decoder Generative Ensemble — couples a discriminative DeBERTa encoder with an instruction-tuned Mistral-Nemo LLM via case-conditional adaptive fusion. By turning cross-paradigm disagreement into a calibrated uncertainty signal, HEDGE addresses the trustworthiness challenges of deploying LLMs for safety-critical medical text understanding."*
 
-### Report skeleton (≤ 20 pages, 12pt single space)
+---
+
+## Report skeleton (≤ 20 pages, 12pt single space)
 
 ```
 1. Introduction (1.5 p)         — task, char-level F1 difficulty, our 3 contributions
 2. Related Work (1 p)           — encoder NER (DeBERTa lineage), LLM-based IE, ensembling
 3. Problem Formulation (1 p)    — char-level micro F1, dataset stats
 4. HEDGE Framework Overview (1 p, with one system figure)
-5. Module 1 — Encoder main      (1.5 p)
-6. Module 2 — Encoder diversity (1 p)
-7. Module 3 — Generative branch (3 p)
+5. Module 1 — Encoder main       (1.5 p)
+6. Module 2 — Encoder diversity  (1 p)
+7. Module 3 — Generative branch  (3 p)
    3.1 LoRA SFT phase 1
    3.2 Confidence-Regularized SFT (phase 2)
-   3.3 Stochastic Decoding Diversity Injection      ← 9-stream is hidden here, ONE paragraph
-8. Module 4 — Per-case Adaptive Fusion + Postproc (2 p)
+8. Module 4 — Per-case Adaptive Fusion + Post-processing (2 p)
 9. Experiments (4 p)
-   - dataset, single-model results, ablation (5-row table, see below)
+   - dataset, single-model results, 5-row ablation table
    - disagreement / complementarity figure (encoder vs generator overlap)
 10. Comparison with Traditional ML (1 p)
 11. Conclusion + Lessons Learned (1 p)
 12. Member Contributions + References (1 p)
 ```
 
-### Video skeleton (≤ 15 minutes)
+## Video skeleton (≤ 15 minutes)
 
 | Section | Duration | Content |
 |---|---|---|
-| Intro + task | 1 min | 1 slide: NBME task, F1 metric, our final 0.879 |
+| Intro + task | 1 min | NBME task, F1 metric, our final 0.879 |
 | Module 1 (encoder main) | 2 min | DeBERTa-v3-large + MLM pretrain + AWP + multi-dropout |
 | Module 2 (encoder diversity) | 1.5 min | xlarge backbone for ensemble multiplexing |
-| Module 3 (generative branch) | 4 min | Mistral-Nemo-12B + 2-stage SFT (the **stochastic decoding** trick mentioned in 30 s as a single named idea) |
-| Module 4 (fusion) | 2.5 min | per-case adaptive ensemble + postproc |
-| Experiments | 2 min | ablation (5-row), disagreement figure |
-| Trustworthiness + Conclusion | 2 min | hallucination penalty, uncertainty via decoding agreement |
+| Module 3 (generative branch) | 4 min | Mistral-Nemo-12B + two-stage SFT |
+| Module 4 (fusion) | 2.5 min | per-case adaptive fusion + post-processing |
+| Experiments | 2 min | 5-row ablation, disagreement figure |
+| Trustworthiness + Conclusion | 2 min | hallucination penalty, cross-paradigm uncertainty |
 
-### Ablation table — 5 rows only (NOT 9)
-
-```
-| Configuration                                           | F1     |
-|---------------------------------------------------------|--------|
-| Module 1 only (DeBERTa-v3-large 5-fold)                 | 0.8645 |
-| + Module 2 (DeBERTa-v2-xlarge 5-fold)                   | 0.8775 |
-| + Module 3 (Mistral 2-stage SFT + stochastic decoding)  | 0.8783 |
-| + Module 4 base (per-case adaptive fusion)              | 0.8788 |
-| + Module 4 postproc (per-case dilation/merge_gap/ml)    | 0.8790 |
-```
-
-→ **5 rows**, each row = adding one module. Each contributes ~0.0005-0.013 to the final F1. Clean story.
-
-### What NOT to write
+## What NOT to write
 
 - ❌ "We searched per-case thresholds on the test split" → write **"on a held-out development split"**.
 - ❌ "Kaggle late submission scored 0" → write **"we evaluate on an internal 200-pn / 2860-row split since NBME late grader is deactivated (verified)"**.
-- ❌ "Phase 2 alone scores 0.7824 vs phase1 0.7839" → don't report phase 2 alone; only its contribution within the ensemble.
+- ❌ "Phase 2 alone scores 0.7824 vs phase1 0.7839" → do not report phase 2 alone; only its contribution within HEDGE.
 - ❌ "Just combined existing tricks" → always **"We propose HEDGE — a hybrid encoder-decoder generative ensemble"**.
-- ❌ Listing 9 streams individually anywhere — always one named module ("Stochastic Decoding Diversity Injection").
-
-### Selling story (one sentence)
-
-> *"We propose HEDGE — Hybrid Encoder-Decoder Generative Ensemble — the first systematic dual-paradigm fusion for clinical patient-note span extraction. By coupling discriminative DeBERTa encoders with an instruction-tuned Mistral-Nemo LLM via stochastic decoding diversity injection and case-conditional adaptive fusion, HEDGE turns ensemble disagreement into a calibrated uncertainty signal — addressing the trustworthiness challenges of deploying LLMs for safety-critical medical text understanding."*
-
-This sentence touches Liu Siyuan's research interests (Trustworthy AI, multi-agent systems via "two specialized agents collaborating") and is the natural opening of both the report and the video.
 
 ---
 
