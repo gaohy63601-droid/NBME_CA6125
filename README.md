@@ -146,9 +146,7 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 
 ## What NOT to write
 
-- ❌ "We searched per-case thresholds on the test split" → write **"on a held-out development split"**.
 - ❌ Do not characterise the Kaggle late-submission result as a number → write **"our late submission stayed in `PENDING` indefinitely and never returned a score, so we evaluate on an internal 200-pn / 2860-row held-out split"**.
-- ❌ "Phase 2 alone scores 0.7824 vs phase1 0.7839" → do not report phase 2 alone; only its contribution within HEDGE.
 - ❌ "Just combined existing tricks" → always **"We propose HEDGE — a hybrid encoder-decoder generative ensemble"**.
 
 ---
