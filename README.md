@@ -144,13 +144,6 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 | Experiments | 2 min | 5-row ablation, disagreement figure |
 | Trustworthiness + Conclusion | 2 min | hallucination penalty, cross-paradigm uncertainty |
 
-## What NOT to write
-
-- ❌ Do not characterise the Kaggle late-submission result as a number → write **"our late submission stayed in `PENDING` indefinitely and never returned a score, so we evaluate on an internal 200-pn / 2860-row held-out split"**.
-- ❌ "Just combined existing tricks" → always **"We propose HEDGE — a hybrid encoder-decoder generative ensemble"**.
-
----
-
 ## Acknowledgements / References
 
 - NBME 2022 Kaggle community top solutions (DeBERTa-v3 + AWP + multi-dropout pattern is borrowed and acknowledged from the public discussion at the competition page).
