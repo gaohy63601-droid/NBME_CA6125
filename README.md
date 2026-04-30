@@ -132,6 +132,10 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 12. Member Contributions + References (1 p)
 ```
 
+## Reminder when writing
+
+- ❌ Do not characterise the Kaggle late-submission result as a number → write **"our late submission stayed in `PENDING` indefinitely and never returned a score, so we evaluate on an internal 200-pn / 2860-row held-out split"**.
+
 ## Video skeleton (≤ 15 minutes)
 
 | Section | Duration | Content |
