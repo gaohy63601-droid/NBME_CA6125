@@ -7,7 +7,6 @@
 ## Result
 
 **Held-out micro F1 = 0.8909** on a 200-pn / 2860-row internal split (held out from competition train).
-For reference, NBME 2022 top-1 private LB is 0.886 — **we exceed it by 0.005**.
 
 > Note: a late submission to the NBME Kaggle competition stays in `PENDING` indefinitely and never returns a score (verified — our submission was stuck in `PENDING` for hours). We therefore evaluate on a stratified internal held-out split from the competition train data.
 
@@ -58,7 +57,7 @@ Cumulative gain: **+0.0263** over the DeBERTa-large baseline.
 
 - **Module 4 — Per-case adaptive fusion** lifts the ensemble by another **+0.0088 without introducing any new model**, purely by recognising that the 10 USMLE clinical cases (cardiology, neurology, dermatology …) have systematically different fusion sweet spots. We per-case search over four parameters — encoder weighting, primary threshold, generator inclusion mode, soft-vote threshold — turning a single global decision rule into 10 case-conditional decision rules. This step is also where HEDGE's **trustworthiness contribution is realised**: per-case disagreement profiles act as a calibrated uncertainty signal that can be surfaced for selective human review.
 
-Cumulatively the four modules contribute **+0.0263** over the DeBERTa-large baseline, with HEDGE's final F1 of **0.8909 exceeding NBME 2022's top-1 private LB of 0.886 by +0.005**.
+Cumulatively the four modules contribute **+0.0263** over the DeBERTa-large baseline, lifting HEDGE's final F1 to **0.8909** on the internal held-out split.
 
 ## Repository layout
 
