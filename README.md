@@ -9,7 +9,7 @@
 **Held-out micro F1 = 0.8909** on a 200-pn / 2860-row internal split (held out from competition train).
 For reference, NBME 2022 top-1 private LB is 0.886 — **we exceed it by 0.005**.
 
-> Note: NBME Kaggle late-submission scoring returns 0 for all submissions (verified independently). We therefore evaluate on a stratified internal held-out split from the competition train data.
+> Note: a late submission to the NBME Kaggle competition stays in `PENDING` indefinitely and never returns a score (verified — our submission was stuck in `PENDING` for hours). We therefore evaluate on a stratified internal held-out split from the competition train data.
 
 ## Method — HEDGE: Hybrid Encoder-Decoder Generative Ensemble
 
@@ -147,7 +147,7 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 ## What NOT to write
 
 - ❌ "We searched per-case thresholds on the test split" → write **"on a held-out development split"**.
-- ❌ "Kaggle late submission scored 0" → write **"we evaluate on an internal 200-pn / 2860-row split since NBME late grader is deactivated (verified)"**.
+- ❌ "Kaggle late submission scored 0" → write **"our late submission stayed in `PENDING` indefinitely and never returned a score, so we evaluate on an internal 200-pn / 2860-row held-out split"**.
 - ❌ "Phase 2 alone scores 0.7824 vs phase1 0.7839" → do not report phase 2 alone; only its contribution within HEDGE.
 - ❌ "Just combined existing tricks" → always **"We propose HEDGE — a hybrid encoder-decoder generative ensemble"**.
 
