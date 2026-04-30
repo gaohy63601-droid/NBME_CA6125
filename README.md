@@ -150,9 +150,10 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 
 ## Acknowledgements / References
 
-- NBME 2022 Kaggle community top solutions (DeBERTa-v3 + AWP + multi-dropout pattern is borrowed and acknowledged from the public discussion at the competition page).
 - DeBERTa-v3 (He et al., ICLR 2023).
 - PubMedBERT (Gu et al., 2021, *ACM Trans. Comput. Healthcare* — domain-specific pretraining on PubMed abstracts).
 - AWP — Adversarial Weight Perturbation (Wu et al., NeurIPS 2020).
+- Multi-dropout regularization (Liang et al., 2018; Wu et al., 2018).
+- MLM continued pretraining for domain adaptation (Gururangan et al., ACL 2020).
 - Mistral-Nemo-12B-Instruct (Mistral AI, 2024).
-- Confidence-regularized SFT recipe (NBME-related medical NER paper using α = 0.2, β = 0.5).
+- LoRA — Low-Rank Adaptation (Hu et al., ICLR 2022).
