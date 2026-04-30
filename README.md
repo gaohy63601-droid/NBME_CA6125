@@ -6,7 +6,7 @@
 
 ## Result
 
-**Held-out micro F1 = 0.8790** on a 200-pn / 2860-row internal split (held out from competition train).
+**Held-out micro F1 = 0.8788** on a 200-pn / 2860-row internal split (held out from competition train).
 For reference, NBME 2022 top-1 private LB is 0.886 — gap = 0.007.
 
 > Note: NBME Kaggle late-submission scoring returns 0 for all submissions (verified independently). We therefore evaluate on a stratified internal held-out split from the competition train data.
@@ -41,17 +41,16 @@ We combine a **discriminative encoder branch** (DeBERTa) and a **generative LLM 
 | Module 1 only (DeBERTa-v3-large 5-fold) | 0.8645 |
 | + Module 2 (DeBERTa-v2-xlarge 5-fold) | 0.8775 |
 | + Module 3 (Mistral two-stage SFT) | 0.8783 |
-| + Module 4 base (per-case adaptive fusion) | 0.8788 |
-| **+ Module 4 post-processing (final HEDGE)** | **0.8790** |
+| **+ Module 4 (per-case adaptive fusion) — final HEDGE** | **0.8788** |
 
-Cumulative gain: **+0.0145** over the DeBERTa-large baseline.
+Cumulative gain: **+0.0143** over the DeBERTa-large baseline.
 
 ## Repository layout
 
 ```
 .
 ├── README.md                 — this file
-├── submission.csv            — final HEDGE predictions on the held-out split (2860 rows, F1 = 0.8790)
+├── submission.csv            — final HEDGE predictions on the held-out split (2860 rows, F1 = 0.8788)
 └── code/                     — training, inference, fusion, and post-processing scripts
     ├── data_prep.py          — convert NBME splits into Mistral instruction-format JSONL
     ├── train_phase1.py       — Mistral-Nemo-12B LoRA SFT (CE)
@@ -62,7 +61,7 @@ Cumulative gain: **+0.0145** over the DeBERTa-large baseline.
     ├── per_case_9way.py      — per-case adaptive fusion (used for our final number)
     ├── postproc_5way.py      — earlier post-processing variant
     ├── postproc_7way.py      — earlier post-processing variant
-    └── postproc_9way.py      — per-case post-processing (final stage of HEDGE → F1 0.8790)
+    └── postproc_9way.py      — per-case post-processing (final stage of HEDGE → F1 0.8788)
 ```
 
 The DeBERTa-v3-large / DeBERTa-v2-xlarge / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts.
@@ -72,8 +71,7 @@ The DeBERTa-v3-large / DeBERTa-v2-xlarge / Mistral-Nemo-12B checkpoints are not 
 After all module checkpoints and intermediate prediction files have been generated (Module 1 / 2 via standard 5-fold fine-tuning; Module 3 via `code/train_phase1.py` and `code/train_phase2.py` followed by `code/infer.py`):
 
 ```bash
-python code/per_case_9way.py     # Module 4 base — per-case adaptive fusion → F1 0.8788
-python code/postproc_9way.py     # Module 4 post-processing → final F1 0.8790
+python code/per_case_9way.py     # Module 4 — per-case adaptive fusion → F1 0.8788
 ```
 
 ## Comparison with traditional ML
