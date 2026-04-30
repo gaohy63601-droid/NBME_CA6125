@@ -13,7 +13,7 @@ For reference, NBME 2022 top-1 private LB is 0.886 — **we exceed it by 0.005**
 
 ## Method — HEDGE: Hybrid Encoder-Decoder Generative Ensemble
 
-We combine a **discriminative encoder branch** (DeBERTa) and a **generative LLM branch** (Mistral-Nemo-12B), then fuse them per clinical case.
+We combine three models that look at the same clinical text from three orthogonal angles — a **general-domain encoder** (DeBERTa-v3-large), a **medical-domain encoder** (PubMedBERT-large), and a **generative LLM** (Mistral-Nemo-12B) — then fuse them per clinical case.
 
 ### Module 1 — DeBERTa-v3-large 5-fold (encoder main)
 - MLM continued pretraining on 42k unlabeled patient notes (domain adaptation).
@@ -48,7 +48,10 @@ We combine a **discriminative encoder branch** (DeBERTa) and a **generative LLM 
 
 Cumulative gain: **+0.0263** over the DeBERTa-large baseline.
 
-> Aside: PubMedBERT alone scores only 0.8258 — **weaker** than DeBERTa-v3-large alone — but combining the two pushes the ensemble up. Their errors are uncorrelated (general-language vs. medical-jargon), so fusion is genuinely complementary, not redundant variance reduction.
+> Notes on each module's contribution:
+> - **Module 2 (medical-domain encoder)**: small numeric gain (+0.0018) on top of Module 1, but adds **medical-jargon recall** that Module 1 misses. PubMedBERT alone is weaker (0.8258) than DeBERTa-v3-large alone (0.8646), so the benefit is purely from error decorrelation, not raw quality.
+> - **Module 3 (generative LLM)**: largest contribution (**+0.0157**) — the discriminative-vs-generative paradigm gap is the most useful axis of complementarity.
+> - **Module 4 (per-case adaptive fusion)**: another **+0.0088** by exploiting that different USMLE cases need different fusion strategies.
 
 ## Repository layout
 
@@ -69,7 +72,7 @@ Cumulative gain: **+0.0263** over the DeBERTa-large baseline.
     └── postproc_9way.py      — per-case post-processing (final stage of HEDGE → F1 0.8909)
 ```
 
-The DeBERTa-v3-large / DeBERTa-v2-xlarge / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts.
+The DeBERTa-v3-large / PubMedBERT-large / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts.
 
 ## Reproducing the final number
 
@@ -85,11 +88,12 @@ python code/per_case_9way.py     # Module 4 — per-case adaptive fusion → F1 
 |---|---|---|---|
 | BiLSTM-CRF (classical NER) | ~0.75 (literature) | lightweight, interpretable | weak long-context, poor OOD |
 | BERT-base + QA fine-tune | ~0.82 (literature) | strong context | char-level granularity limited |
-| **DeBERTa-v3-large + MLM-pretrain + AWP** (our encoder) | 0.86 | char-level precision | no medical semantic prior |
-| **Mistral-Nemo-12B LoRA SFT** (our generator) | 0.79 | rich semantics, medical knowledge | char-level imprecise (gen → match) |
-| **HEDGE — three modules fused** (ours) | **0.891** | uncorrelated errors complement each other | high inference cost |
+| **DeBERTa-v3-large + MLM-pretrain + AWP** (Module 1, our general encoder) | 0.8646 | char-level precision, strong general language | no medical semantic prior |
+| **PubMedBERT-large + AWP** (Module 2, our medical encoder) | 0.8258 | medical jargon, clinical acronyms, drug/symptom terms | weaker on long-range syntax |
+| **Mistral-Nemo-12B + 2-stage LoRA SFT** (Module 3, our generator) | ~0.79 | rich semantics, medical knowledge | char-level imprecise (generate → string-match) |
+| **HEDGE — three modules fused** (ours) | **0.8909** | uncorrelated errors along 3 axes | high inference cost |
 
-The three modules have **uncorrelated errors** along three orthogonal axes: general-language vs. medical-domain knowledge (Module 1 vs. Module 2), and discriminative char-level scoring vs. generative span writing (Modules 1+2 vs. Module 3). Their fusion is the source of the gain from 0.864 to 0.891.
+The three modules have **uncorrelated errors** along three orthogonal axes: general-language vs. medical-domain knowledge (Module 1 vs. Module 2), and discriminative char-level scoring vs. generative span writing (Modules 1+2 vs. Module 3). The fusion turns disagreement into signal, lifting the F1 from 0.8646 (best single model) to 0.8909.
 
 ## Trustworthiness
 
@@ -103,7 +107,7 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 
 ## Selling story (one sentence)
 
-> *"HEDGE — a Hybrid Encoder-Decoder Generative Ensemble — couples a discriminative DeBERTa encoder with an instruction-tuned Mistral-Nemo LLM via case-conditional adaptive fusion. By turning cross-paradigm disagreement into a calibrated uncertainty signal, HEDGE addresses the trustworthiness challenges of deploying LLMs for safety-critical medical text understanding."*
+> *"HEDGE — Hybrid Encoder-Decoder Generative Ensemble — looks at each clinical patient note from three orthogonal angles: a general-domain encoder (DeBERTa-v3-large), a medical-domain encoder (PubMedBERT-large), and a generative LLM (Mistral-Nemo-12B with confidence-regularized SFT). By turning cross-paradigm disagreement into a calibrated uncertainty signal and adapting the fusion strategy per USMLE case, HEDGE addresses the trustworthiness challenges of deploying LLMs for safety-critical medical text understanding."*
 
 ---
 
@@ -134,7 +138,7 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 |---|---|---|
 | Intro + task | 1 min | NBME task, F1 metric, our final 0.891 |
 | Module 1 (encoder main) | 2 min | DeBERTa-v3-large + MLM pretrain + AWP + multi-dropout |
-| Module 2 (encoder diversity) | 1.5 min | xlarge backbone for ensemble multiplexing |
+| Module 2 (medical-domain encoder) | 1.5 min | PubMedBERT-large — pretrained on PubMed abstracts; provides medical-jargon recall (HTN, SOB, c/o, drug/symptom synonyms) that the general-domain DeBERTa misses |
 | Module 3 (generative branch) | 4 min | Mistral-Nemo-12B + two-stage SFT |
 | Module 4 (fusion) | 2.5 min | per-case adaptive fusion + post-processing |
 | Experiments | 2 min | 5-row ablation, disagreement figure |
@@ -153,6 +157,7 @@ These properties are central to the trustworthy deployment of LLMs in safety-cri
 
 - NBME 2022 Kaggle community top solutions (DeBERTa-v3 + AWP + multi-dropout pattern is borrowed and acknowledged from the public discussion at the competition page).
 - DeBERTa-v3 (He et al., ICLR 2023).
+- PubMedBERT (Gu et al., 2021, *ACM Trans. Comput. Healthcare* — domain-specific pretraining on PubMed abstracts).
 - AWP — Adversarial Weight Perturbation (Wu et al., NeurIPS 2020).
 - Mistral-Nemo-12B-Instruct (Mistral AI, 2024).
 - Confidence-regularized SFT recipe (NBME-related medical NER paper using α = 0.2, β = 0.5).
