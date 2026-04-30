@@ -41,15 +41,14 @@ We combine a **discriminative encoder branch** (DeBERTa) and a **generative LLM 
 
 | Configuration | Held-out F1 |
 |---|---|
-| Module 1 only (DeBERTa-v3-large 5-fold) | 0.8645 |
-| Module 2 only (PubMedBERT-large 5-fold) | 0.8258 |
-| Module 1 + Module 2 (general + medical-domain encoders) | ~0.879 |
-| + Module 3 (Mistral two-stage SFT) | ~0.886 |
+| Module 1 only (DeBERTa-v3-large 5-fold) | 0.8646 |
+| + Module 2 (PubMedBERT-large 5-fold) | 0.8664 |
+| + Module 3 (Mistral two-stage SFT) | 0.8821 |
 | **+ Module 4 (per-case adaptive fusion) — final HEDGE** | **0.8909** |
 
-Cumulative gain: **+0.0264** over the DeBERTa-large baseline.
+Cumulative gain: **+0.0263** over the DeBERTa-large baseline.
 
-> Note: PubMedBERT alone (0.826) is **weaker** than DeBERTa-v3-large (0.864) — but when combined, the ensemble jumps from 0.864 to 0.879 (+0.015). This is the empirical evidence that the two encoders make **uncorrelated errors** (general-language errors vs. medical-jargon errors), not just averaged variance reduction.
+> Aside: PubMedBERT alone scores only 0.8258 — **weaker** than DeBERTa-v3-large alone — but combining the two pushes the ensemble up. Their errors are uncorrelated (general-language vs. medical-jargon), so fusion is genuinely complementary, not redundant variance reduction.
 
 ## Repository layout
 
