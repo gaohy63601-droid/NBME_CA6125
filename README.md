@@ -66,26 +66,36 @@ Cumulatively the four modules contribute **+0.0263** over the DeBERTa-large base
 ├── README.md                 — this file
 ├── submission.csv            — final HEDGE predictions on the held-out split (2860 rows, F1 = 0.8909)
 └── code/                     — training, inference, fusion, and post-processing scripts
+    ├── split_5fold.py        — 80/20 patient-note split + 5-fold assignment of train portion
+    ├── mlm_pretrain.py       — MLM continued pretraining on 42k unlabeled NBME patient notes (Module 1/2 backbone)
+    ├── train_encoder.py      — Module 1 / Module 2 fine-tune (DeBERTa-v3-large or PubMedBERT-large) with LLRD + AWP + multi-dropout
+    ├── launch_5fold.sh       — Module 1 launcher: DeBERTa-v3-large 5-fold (across 5 GPUs)
+    ├── launch_pubmed_5fold.sh — Module 2 launcher: PubMedBERT-large 5-fold (across 5 GPUs)
     ├── data_prep.py          — convert NBME splits into Mistral instruction-format JSONL
-    ├── train_phase1.py       — Mistral-Nemo-12B LoRA SFT (CE)
-    ├── train_phase2.py       — Mistral confidence-regularized SFT
+    ├── train_phase1.py       — Module 3 phase 1: Mistral-Nemo-12B LoRA SFT (CE)
+    ├── train_phase2.py       — Module 3 phase 2: confidence-regularized SFT (hallucination + missing penalties)
     ├── infer.py              — Mistral inference (deterministic + probabilistic decoding)
     ├── per_case_5way.py      — earlier per-case fusion variant (kept for ablation)
     ├── per_case_7way.py      — earlier per-case fusion variant (kept for ablation)
-    ├── per_case_9way.py      — per-case adaptive fusion (used for our final number)
+    ├── per_case_9way.py      — per-case adaptive fusion using DeBERTa-v2-xlarge as the second encoder (earlier ablation, F1 = 0.8788)
+    ├── per_case_9way_pubmed.py — per-case adaptive fusion using PubMedBERT-large as the second encoder (final HEDGE pipeline → F1 = 0.8909)
     ├── postproc_5way.py      — earlier post-processing variant
     ├── postproc_7way.py      — earlier post-processing variant
-    └── postproc_9way.py      — per-case post-processing (final stage of HEDGE → F1 0.8909)
+    └── postproc_9way.py      — per-case post-processing (used in earlier 9-way ablation)
 ```
 
-The DeBERTa-v3-large / PubMedBERT-large / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts.
+The DeBERTa-v3-large / PubMedBERT-large / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts. All hardcoded `/raid/yiren/...` paths inside the scripts should be edited to point at your own data / checkpoint root.
 
 ## Reproducing the final number
 
-After all module checkpoints and intermediate prediction files have been generated (Module 1 / 2 via standard 5-fold fine-tuning; Module 3 via `code/train_phase1.py` and `code/train_phase2.py` followed by `code/infer.py`):
+After all module checkpoints and intermediate prediction files have been generated:
+
+- Module 1 (DeBERTa-v3-large 5-fold): `bash code/launch_5fold.sh`
+- Module 2 (PubMedBERT-large 5-fold): `bash code/launch_pubmed_5fold.sh`
+- Module 3 (Mistral 2-stage SFT + inference): `python code/train_phase1.py` → `python code/train_phase2.py` → `python code/infer.py`
 
 ```bash
-python code/per_case_9way.py     # Module 4 — per-case adaptive fusion → F1 0.8909
+python code/per_case_9way_pubmed.py     # Module 4 — per-case adaptive fusion → F1 0.8909
 ```
 
 ## Comparison with traditional ML
