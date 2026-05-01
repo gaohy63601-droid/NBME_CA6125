@@ -4,7 +4,14 @@
 #   round_tag: e.g. "r1" (no pseudo) or "r2" (with pseudo)
 #   extra_csv: optional path to pseudo_train.csv
 set -e
-cd /raid/yiren/ghy/motion_transfer/medical/nbme_baseline
+# Run this script from the code/ directory of the repo.
+# NOTE: The original training run used the absolute path
+#   /raid/yiren/ghy/motion_transfer/medical/nbme_baseline
+# and a specific Python interpreter. Edit WORKDIR / PYTHON to match your environment.
+WORKDIR="${WORKDIR:-$(pwd)}"
+PYTHON="${PYTHON:-python}"
+cd "$WORKDIR"
+
 TAG="${1:?need round tag, e.g. r1}"
 EXTRA="$2"
 EPOCHS="${3:-5}"
@@ -24,8 +31,8 @@ for f in 0 1 2 3 4; do
     GPU=${GPUS[$f]}
     SESS="nbme_${TAG}_f${f}"
     tmux kill-session -t $SESS 2>/dev/null || true
-    tmux new-session -d -s $SESS -c /raid/yiren/ghy/motion_transfer/medical/nbme_baseline
-    CMD="CUDA_VISIBLE_DEVICES=$GPU HF_HOME=/raid/yiren/hf_cache/huggingface /raid/yiren/conda_envs/ragnarok/bin/python -u train.py --epochs $EPOCHS --awp_start_ep $AWP_START --fold $f --backbone $BACKBONE --ckpt_name ${TAG}_fold${f}.pt $EXTRA_FLAG 2>&1 | tee $LOGDIR/fold${f}.log"
+    tmux new-session -d -s $SESS -c "$WORKDIR"
+    CMD="CUDA_VISIBLE_DEVICES=$GPU $PYTHON -u train_encoder.py --epochs $EPOCHS --awp_start_ep $AWP_START --fold $f --backbone $BACKBONE --ckpt_name ${TAG}_fold${f}.pt $EXTRA_FLAG 2>&1 | tee $LOGDIR/fold${f}.log"
     tmux send-keys -t $SESS "$CMD" C-m
     echo "launched $SESS on GPU $GPU"
 done

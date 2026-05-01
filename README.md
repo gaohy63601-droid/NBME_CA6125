@@ -92,7 +92,20 @@ After all module checkpoints and intermediate prediction files have been generat
 
 - Module 1 (DeBERTa-v3-large 5-fold): `bash code/launch_5fold.sh`
 - Module 2 (PubMedBERT-large 5-fold): `bash code/launch_pubmed_5fold.sh`
-- Module 3 (Mistral 2-stage SFT + inference): `python code/train_phase1.py` → `python code/train_phase2.py` → `python code/infer.py`
+- Module 3 (Mistral 2-stage SFT + 9-way decoding):
+  ```bash
+  python code/data_prep.py                                                                     # build instruction-format JSONL
+  python code/train_phase1.py                                                                  # phase 1 LoRA SFT (CE)
+  python code/train_phase2.py                                                                  # phase 2 confidence-regularized SFT
+  # then run infer.py 9 times — Module 4 fuses these 9 decoding streams:
+  python code/infer.py --lora ckpt/phase1_lora --out_tag phase1_5ep                            # ms1: phase1 greedy
+  python code/infer.py --lora ckpt/phase2_lora --out_tag phase2                                # ms2: phase2 greedy
+  python code/infer.py --lora ckpt/phase1_lora --out_tag phase1_5ep_beam4 --num_beams 4        # ms3: phase1 beam=4
+  for s in 42 100 200; do
+    python code/infer.py --lora ckpt/phase1_lora --out_tag phase1_5ep_t07_s${s} --do_sample --temperature 0.7 --seed $s   # ms4-6
+    python code/infer.py --lora ckpt/phase2_lora --out_tag phase2_t07_s${s}      --do_sample --temperature 0.7 --seed $s  # ms7-9
+  done
+  ```
 
 ```bash
 python code/per_case_9way_pubmed.py     # Module 4 — per-case adaptive fusion → F1 0.8909
