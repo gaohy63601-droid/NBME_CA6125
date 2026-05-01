@@ -4,10 +4,7 @@
 #   round_tag: e.g. "r1" (no pseudo) or "r2" (with pseudo)
 #   extra_csv: optional path to pseudo_train.csv
 set -e
-# Run this script from the code/ directory of the repo.
-# NOTE: The original training run used the absolute path
-#   /raid/yiren/ghy/motion_transfer/medical/nbme_baseline
-# and a specific Python interpreter. Edit WORKDIR / PYTHON to match your environment.
+# Edit WORKDIR / PYTHON to match your environment.
 WORKDIR="${WORKDIR:-$(pwd)}"
 PYTHON="${PYTHON:-python}"
 cd "$WORKDIR"

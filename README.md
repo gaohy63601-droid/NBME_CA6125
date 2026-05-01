@@ -84,7 +84,7 @@ Cumulatively the four modules contribute **+0.0263** over the DeBERTa-large base
     └── postproc_9way.py      — per-case post-processing (used in earlier 9-way ablation)
 ```
 
-The DeBERTa-v3-large / PubMedBERT-large / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts. All hardcoded `/raid/yiren/...` paths inside the scripts should be edited to point at your own data / checkpoint root.
+The DeBERTa-v3-large / PubMedBERT-large / Mistral-Nemo-12B checkpoints are not committed (~30 GB) and must be reproduced from the training scripts. The data / checkpoint root paths at the top of each script should be edited to match your own environment.
 
 ## Reproducing the final number
 

@@ -2,10 +2,7 @@
 # Train PubMedBERT-large 5-fold on NBME train_split.
 # Output: ckpt/pubmed_fold{0..4}.pt  (KEEP existing xl_fold*.pt untouched)
 set -e
-# Run this script from the code/ directory of the repo.
-# NOTE: The original training run used the absolute path
-#   /raid/yiren/ghy/motion_transfer/medical/nbme_baseline
-# and a specific Python interpreter. Edit WORKDIR / PYTHON to match your environment.
+# Edit WORKDIR / PYTHON to match your environment.
 WORKDIR="${WORKDIR:-$(pwd)}"
 PYTHON="${PYTHON:-python}"
 cd "$WORKDIR"
